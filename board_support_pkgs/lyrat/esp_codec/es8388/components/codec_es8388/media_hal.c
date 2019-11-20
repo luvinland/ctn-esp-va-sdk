@@ -22,6 +22,8 @@
 #include "es8388.h"
 #include <media_hal.h>
 
+#define CTN_REV01 // Jace. 191107. For CTN rev0.1.
+
 #define HAL_TAG "MEDIA_HAL"
 
 #define mutex_create() \
@@ -71,10 +73,12 @@ media_hal_t* media_hal_init(media_hal_config_t *media_hal_conf)
         media_hal_func_init(media_hal);
         mutex_lock(media_hal->media_hal_lock);
         ret  = media_hal->audio_codec_initialize(media_hal_conf->op_mode, media_hal_conf->adc_input, media_hal_conf->dac_output, media_hal_conf->port_num);
+#ifndef CTN_REV01
         ret |= media_hal->audio_codec_config_format(media_hal_conf->codec_mode, 0);
         ret |= media_hal->audio_codec_set_i2s_clk(media_hal_conf->codec_mode, media_hal_conf->bit_length);
         ret |= media_hal->audio_codec_control_volume(MEDIA_HAL_VOL_DEFAULT);
         // ret |= media_hal->audio_codec_powerdown();
+#endif
         mutex_unlock(media_hal->media_hal_lock);
         volume_prv = MEDIA_HAL_VOL_DEFAULT;
 

@@ -43,6 +43,8 @@
 
 #define SOFTAP_SSID_PREFIX  "ESP-Alexa-"
 
+#define CTN_REV01 // Jace. 191107. For CTN rev0.1.
+
 static const char *TAG = "[app_main]";
 
 static EventGroupHandle_t cm_event_group;
@@ -110,6 +112,24 @@ void app_prov_done_cb()
     xEventGroupSetBits(cm_event_group, PROV_DONE_BIT);
 }
 
+#ifdef CTN_REV01
+#define TRI_LED 14
+#define RES_LED 13
+
+static esp_err_t ctn_led_init()
+{
+    gpio_pad_select_gpio(TRI_LED);
+    gpio_set_direction(TRI_LED, GPIO_MODE_OUTPUT);
+    gpio_set_level(TRI_LED, 0);
+
+    gpio_pad_select_gpio(RES_LED);
+    gpio_set_direction(RES_LED, GPIO_MODE_OUTPUT);
+    gpio_set_level(RES_LED, 0);
+
+    return ESP_OK;
+}
+#endif
+
 void app_main()
 {
     ESP_LOGI(TAG, "==== Voice Assistant SDK version: %s ====", va_get_sdk_version());
@@ -133,8 +153,13 @@ void app_main()
     static media_hal_config_t media_hal_conf = MEDIA_HAL_DEFAULT();
     media_hal_init(&media_hal_conf);
 
+#ifdef CTN_REV01
+    ctn_led_init();
+    va_board_led_init();
+#else
     va_board_button_init();
     va_board_led_init();
+#endif
 
     scli_init();
     va_diag_register_cli();

@@ -231,9 +231,15 @@ void va_dsp_mic_mute(bool mute)
 {
     struct dsp_event_data new_event;
     if (mute)
+    {
+        ESP_LOGE(TAG, "___ Jace_Test ___ MIC MUTE");
         new_event.event = MUTE;
+    }
     else
+    {
+        ESP_LOGE(TAG, "___ Jace_Test ___ MIC UNMUTE");
         new_event.event = UNMUTE;
+    }
     va_nvs_set_i8(DSP_NVS_KEY, mute);
     xQueueSend(cmd_queue, &new_event, portMAX_DELAY);
 }

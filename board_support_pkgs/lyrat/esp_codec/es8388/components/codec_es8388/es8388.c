@@ -30,6 +30,8 @@
 
 #define CTN_REV01_I2C // Jace. 191107. Add I2C slave function for CTN
 
+#define CTN_TONE_PLAY // Jace. 191115. Add binary tone player function
+
 #define ES_TAG "CODEC_ES8388"
 
 #define ES8388_DISABLE_MUTE 0x00   //disable mute
@@ -96,6 +98,62 @@ static esp_err_t audio_codec_i2c_init(int i2c_slave_port)
     return res;
 }
 
+#ifdef CTN_TONE_PLAY
+extern uint8_t _binary_01_bin_start, _binary_01_bin_end, _binary_02_bin_start, _binary_02_bin_end, _binary_03_bin_start, _binary_03_bin_end, _binary_04_bin_start, _binary_04_bin_end,
+               _binary_05_bin_start, _binary_05_bin_end, _binary_06_bin_start, _binary_06_bin_end, _binary_07_bin_start, _binary_07_bin_end, _binary_08_bin_start, _binary_08_bin_end,
+               _binary_09_bin_start, _binary_09_bin_end, _binary_10_bin_start, _binary_10_bin_end, _binary_11_bin_start, _binary_11_bin_end;
+
+static esp_err_t ctn_tone_play(uint8_t cmd)
+{
+    int res = 0;
+
+    media_hal_audio_info_t bin_info = {0};
+
+    bin_info.sample_rate = 16000;
+    bin_info.channels = 1;
+    bin_info.bits_per_sample = 16;
+    printf("___ Jace_Test ___ cmd[%x]\n", cmd);
+    switch(cmd)
+    {
+        case POWEROFF:
+            res = tone_play_custom(&_binary_02_bin_start, &_binary_02_bin_end, &bin_info);
+            break;
+        case POWERON:
+            res = tone_play_custom(&_binary_01_bin_start, &_binary_01_bin_end, &bin_info);
+            break;
+        case FAN1:
+            res = tone_play_custom(&_binary_03_bin_start, &_binary_03_bin_end, &bin_info);
+            break;
+        case FAN2:
+            res = tone_play_custom(&_binary_04_bin_start, &_binary_04_bin_end, &bin_info);
+            break;
+        case FAN3:
+            res = tone_play_custom(&_binary_05_bin_start, &_binary_05_bin_end, &bin_info);
+            break;
+        case TIMER1H:
+            res = tone_play_custom(&_binary_06_bin_start, &_binary_06_bin_end, &bin_info);
+            break;
+        case TIMER4H:
+            res = tone_play_custom(&_binary_07_bin_start, &_binary_07_bin_end, &bin_info);
+            break;
+        case TIMER8H:
+            res = tone_play_custom(&_binary_08_bin_start, &_binary_08_bin_end, &bin_info);
+            break;
+        case AIMODE:
+            res = tone_play_custom(&_binary_09_bin_start, &_binary_09_bin_end, &bin_info);
+            break;
+        case UNMUTE:
+            res = tone_play_custom(&_binary_10_bin_start, &_binary_10_bin_end, &bin_info);
+            break;
+        case MUTE:
+            res = tone_play_custom(&_binary_11_bin_start, &_binary_11_bin_end, &bin_info);
+            break;
+    }
+
+    printf("___ Jace_Test ___ res[%d]\n", res);
+    return res;
+}
+#endif
 
 static void i2c_slave_read_test(void *arg)
 {
@@ -122,6 +180,9 @@ static void i2c_slave_read_test(void *arg)
                     break;
                 case POWEROFF:
                 case POWERON:
+#ifdef CTN_TONE_PLAY
+                    ctn_tone_play(data_rd[0]);
+#endif
                     gpio_set_level(TRI_LED, 1);
                     gpio_set_level(RES_LED, 0);
                     vTaskDelay(1300 / portTICK_PERIOD_MS);
@@ -131,6 +192,9 @@ static void i2c_slave_read_test(void *arg)
                 case FAN1:
                 case FAN2:
                 case FAN3:
+#ifdef CTN_TONE_PLAY
+                    ctn_tone_play(data_rd[0]);
+#endif
                     gpio_set_level(TRI_LED, 1);
                     gpio_set_level(RES_LED, 0);
                     vTaskDelay(2200 / portTICK_PERIOD_MS);
@@ -140,6 +204,9 @@ static void i2c_slave_read_test(void *arg)
                 case TIMER1H:
                 case TIMER4H:
                 case TIMER8H:
+#ifdef CTN_TONE_PLAY
+                    ctn_tone_play(data_rd[0]);
+#endif
                     gpio_set_level(TRI_LED, 1);
                     gpio_set_level(RES_LED, 0);
                     vTaskDelay(2700 / portTICK_PERIOD_MS);
@@ -149,6 +216,9 @@ static void i2c_slave_read_test(void *arg)
                 case AIMODE:
                 case UNMUTE:
                 case MUTE:
+#ifdef CTN_TONE_PLAY
+                    ctn_tone_play(data_rd[0]);
+#endif
                     gpio_set_level(TRI_LED, 1);
                     gpio_set_level(RES_LED, 0);
                     vTaskDelay(2200 / portTICK_PERIOD_MS);
@@ -429,6 +499,7 @@ esp_err_t es8388_init(media_hal_op_mode_t es8388_mode, media_hal_adc_input_t es8
     }
     //     es8388_write_reg(ES8388_ADDR, ES8388_ADCCONTROL8, 0xC0);
     //res |= es8388_write_reg(ES8388_ADDR, ES8388_ADCCONTROL9,0xC0);
+#endif
     return res;
 }
 

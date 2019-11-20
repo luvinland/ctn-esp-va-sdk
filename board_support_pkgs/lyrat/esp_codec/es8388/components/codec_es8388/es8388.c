@@ -28,6 +28,8 @@
 #include "es8388.h"
 #include <audio_board.h>
 
+#define CTN_REV01_I2C // Jace. 191107. Add I2C slave function for CTN
+
 #define ES_TAG "CODEC_ES8388"
 
 #define ES8388_DISABLE_MUTE 0x00   //disable mute
@@ -47,6 +49,118 @@
 
 uint8_t curr_vol = 0;
 
+#ifdef CTN_REV01_I2C
+#include <tone.h>
+#include <va_dsp.h>
+
+#define TRIGGER     0x01
+#define TIMEOUT     0x02
+#define POWEROFF    0x10
+#define POWERON     0x11
+#define FAN1        0x21
+#define FAN2        0x22
+#define FAN3        0x23
+#define TIMER1H     0x31
+#define TIMER4H     0x34
+#define TIMER8H     0x38
+#define AIMODE      0x41
+#define UNMUTE      0x50
+#define MUTE        0x51
+
+#define TRI_LED 14
+#define RES_LED 13
+
+#define ESP_SLAVE_ADDR          0x28            /*!< ESP32 slave address, you can set any 7bit value */
+#define DATA_LENGTH             2              /*!<Data buffer length for test buffer*/
+#define I2C_SLAVE_TX_BUF_LEN    (DATA_LENGTH)   /*!<I2C slave tx buffer size */
+#define I2C_SLAVE_RX_BUF_LEN    (DATA_LENGTH)   /*!<I2C slave rx buffer size */
+#define TRUE    1
+/**
+ * @brief Initialization function for i2c
+ */
+static esp_err_t audio_codec_i2c_init(int i2c_slave_port)
+{
+    int res;
+    i2c_config_t pf_i2c_pin = {0};
+
+    res = audio_board_i2c_pin_config(i2c_slave_port, &pf_i2c_pin);
+
+    pf_i2c_pin.mode = I2C_MODE_SLAVE;
+
+    pf_i2c_pin.slave.addr_10bit_en = 0;
+    pf_i2c_pin.slave.slave_addr = ESP_SLAVE_ADDR;
+
+    res |= i2c_param_config(i2c_slave_port, &pf_i2c_pin);
+    res |= i2c_driver_install(i2c_slave_port, pf_i2c_pin.mode, I2C_SLAVE_RX_BUF_LEN, I2C_SLAVE_TX_BUF_LEN, TRUE);
+
+    return res;
+}
+
+
+static void i2c_slave_read_test(void *arg)
+{
+    uint8_t *data_rd = (uint8_t *) malloc(DATA_LENGTH);
+    int len = 0;
+
+    memset(data_rd, 0, DATA_LENGTH);
+
+    while (1) {
+        len = i2c_slave_read_buffer( I2C_NUM_0, data_rd, DATA_LENGTH, 100 / portTICK_RATE_MS);
+        if (len > 0) {
+            LOG_8388("___ Jace_Test ___ data[%x]", data_rd[0]);
+            switch(data_rd[0])
+            {
+                case TRIGGER:
+                    va_dsp_mic_mute(1);
+                    tone_play(TONE_WAKE_TOUCH);
+                    gpio_set_level(TRI_LED, 0);
+                    break;
+                case TIMEOUT:
+                    va_dsp_mic_mute(0);
+                    tone_play(TONE_ENDPOINT);
+                    gpio_set_level(TRI_LED, 1);
+                    break;
+                case POWEROFF:
+                case POWERON:
+                    gpio_set_level(TRI_LED, 1);
+                    gpio_set_level(RES_LED, 0);
+                    vTaskDelay(1300 / portTICK_PERIOD_MS);
+                    gpio_set_level(RES_LED, 1);
+                    va_dsp_mic_mute(0);
+                    break;
+                case FAN1:
+                case FAN2:
+                case FAN3:
+                    gpio_set_level(TRI_LED, 1);
+                    gpio_set_level(RES_LED, 0);
+                    vTaskDelay(2200 / portTICK_PERIOD_MS);
+                    gpio_set_level(RES_LED, 1);
+                    va_dsp_mic_mute(0);
+                    break;
+                case TIMER1H:
+                case TIMER4H:
+                case TIMER8H:
+                    gpio_set_level(TRI_LED, 1);
+                    gpio_set_level(RES_LED, 0);
+                    vTaskDelay(2700 / portTICK_PERIOD_MS);
+                    gpio_set_level(RES_LED, 1);
+                    va_dsp_mic_mute(0);
+                    break;
+                case AIMODE:
+                case UNMUTE:
+                case MUTE:
+                    gpio_set_level(TRI_LED, 1);
+                    gpio_set_level(RES_LED, 0);
+                    vTaskDelay(2200 / portTICK_PERIOD_MS);
+                    gpio_set_level(RES_LED, 1);
+                    va_dsp_mic_mute(0);
+                    break;
+            }
+            memset(data_rd, 0, DATA_LENGTH);
+        }
+    }
+}
+#else
 /**
  * @brief Initialization function for i2c
  */
@@ -64,6 +178,7 @@ static esp_err_t audio_codec_i2c_init(int i2c_master_port)
     res |= i2c_driver_install(i2c_master_port, pf_i2c_pin.mode, 0, 0, 0);
     return res;
 }
+#endif
 
 /**
  * @brief Write ES8388 register
@@ -248,6 +363,14 @@ esp_err_t es8388_init(media_hal_op_mode_t es8388_mode, media_hal_adc_input_t es8
 {
     esp_err_t res;
 
+#ifdef CTN_REV01_I2C
+    res = audio_codec_i2c_init(port_num);   //set i2c pin and i2c clock frequency for esp32
+
+    if(pdPASS != xTaskCreate(i2c_slave_read_test, "i2c_test_task_0", 1024 * 2, NULL, (CONFIG_ESP32_PTHREAD_TASK_PRIO_DEFAULT + 1), NULL))
+    {
+        res = ESP_FAIL;
+    }
+#else
     audio_codec_i2c_init(port_num);   //set i2c pin and i2c clock frequency for esp32
 
 #ifndef ES8388_DISABLE_PA_PIN
@@ -332,6 +455,9 @@ esp_err_t es8388_control_volume(uint8_t volume)
     curr_vol = volume;
     uint8_t reg = 0;
 
+#ifdef CTN_REV01_I2C
+    res = 0;
+#else
     if (volume > 100) {
         volume = 100;
     }
@@ -343,6 +469,7 @@ esp_err_t es8388_control_volume(uint8_t volume)
     res |= es8388_write_reg(ES8388_ADDR, ES8388_DACCONTROL25, volume);
     res |= es8388_write_reg(ES8388_ADDR, ES8388_DACCONTROL26, 0);
     res |= es8388_write_reg(ES8388_ADDR, ES8388_DACCONTROL27, 0);
+#endif
     return res;
 }
 

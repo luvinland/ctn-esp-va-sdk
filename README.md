@@ -1,4 +1,4 @@
-# CTN: Cloud amazon alexa and Embedded hi-amo.
+# CTN (Cloud Type Nuvoton): Cloud amazon alexa and Embedded hi-amo.
 
 ## Overview
 Espressif's amazon alexa app project based on [esp-va-sdk](https://github.com/espressif/esp-va-sdk) for AVS with Nuvoton I94124's Embedded VR based on Nuvoton I94100 Series BSP_CMSIS_V3.05.002 SDK.

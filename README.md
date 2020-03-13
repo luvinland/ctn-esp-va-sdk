@@ -16,5 +16,6 @@ Espressif's amazon alexa app project based on [esp-va-sdk](https://github.com/es
 ## Revision
 * **[Rev02: 2020-03-13](https://github.com/luvinland/ctn-rev02-esp-va-sdk)**
   * Apply esp-va-sdk [v1.2](https://github.com/espressif/esp-va-sdk/releases/tag/1.2).
+  * Apply BSP_CMSIS_V3.05.003 SDK.
   * Run BLYNK Application.
   * Add Factory reset function.
